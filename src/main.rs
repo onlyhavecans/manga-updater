@@ -74,6 +74,7 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
 
         // TODO: This needs a retry
         // TODO: This needs pagination
+        // TODO: This needs to handle duplicate chapters
         let feed_result = client
             .manga()
             .feed()
@@ -92,6 +93,7 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
         let english_chapters = manga_chapters
             .iter()
             .filter(|c| c.attributes.translated_language == Language::English);
+
         for chapter in english_chapters {
             let chapter_uuid = chapter.id;
             let attrs = &chapter.attributes;
