@@ -2,12 +2,19 @@ use clap::Parser;
 use env_logger::{Builder, Env, Target};
 use log::{debug, error, info};
 use manga_updater::configuration::Settings;
-use mangadex_api::{types::Language, v5::schema::ChapterAttributes, MangaDexClient};
+use mangadex_api::{
+    types::Language,
+    v5::schema::{AtHomeServer, ChapterAttributes},
+    MangaDexClient,
+};
+use reqwest_middleware::ClientBuilder;
+use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use std::{
     fs::{self, File},
     io::Write,
     path::{Path, PathBuf},
-    process,
+    process, thread,
+    time::Duration,
 };
 use uuid::Uuid;
 use zip::{write::FileOptions, ZipWriter};
@@ -20,12 +27,15 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
-    let mut builder = Builder::from_env(Env::default().default_filter_or("debug"));
+    // Init logging
+    let mut builder = Builder::from_env(Env::default().default_filter_or("info"));
     builder.target(Target::Stdout);
     builder.init();
 
+    // Parse Args
     let args = Args::parse();
 
+    // Parse Settings
     let settings = Settings::new(&args.config_file);
     if let Err(e) = settings {
         error!("Configuration error: {}", e);
@@ -33,6 +43,7 @@ async fn main() {
     }
     let s = settings.unwrap();
 
+    // Run
     if let Err(e) = run(s).await {
         error!("Application error: {}", e);
         process::exit(1);
@@ -40,7 +51,7 @@ async fn main() {
 }
 
 async fn run(settings: Settings) -> anyhow::Result<()> {
-    debug!("Output Directory: {}", settings.output_directory);
+    info!("Output Directory: {}", settings.output_directory);
     let base_path = Path::new(&settings.output_directory);
     fs::create_dir_all(base_path)?;
 
@@ -55,7 +66,8 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
             .title
             .get(&mangadex_api::types::Language::English)
             .unwrap();
-        info!("Manga: {}", manga_title);
+
+        info!("Checking Manga: {}", manga_title);
         let manga_path = base_path.join(manga_title);
         fs::create_dir_all(&manga_path)?;
 
@@ -66,11 +78,11 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
             .build()?
             .send()
             .await?;
-
         if let Err(e) = feed_result {
             error!("Unable to retrieve {}: {}", uuid, e);
             continue;
         }
+
         let manga_chapters = feed_result?.data;
         let english_chapters = manga_chapters
             .iter()
@@ -78,15 +90,18 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
         for chapter in english_chapters {
             let chapter_uuid = chapter.id;
             let attrs = &chapter.attributes;
+
             if attrs.translated_language != Language::English {
                 continue;
             }
+
             let filename = get_filename(attrs, manga_title);
             let page_count = attrs.pages;
+
             debug!("\"{}\" is {} pages long", &filename, page_count);
             let chapter_path = manga_path.join(&filename);
             if chapter_path.exists() {
-                info!("Chapter {} exists, Skipping", &filename);
+                debug!("Chapter {} exists, Skipping", &filename);
                 continue;
             }
 
@@ -118,18 +133,41 @@ fn get_filename(attrs: &ChapterAttributes, manga_title: &String) -> String {
     )
 }
 
+async fn get_athomeserver_with_retry(
+    uuid: Uuid,
+    client: &MangaDexClient,
+    reties: u64,
+) -> anyhow::Result<AtHomeServer> {
+    let mut counter = 0;
+    loop {
+        let at_home = client
+            .at_home()
+            .server()
+            .chapter_id(&uuid)
+            .build()?
+            .send()
+            .await;
+        if let Ok(a) = at_home {
+            return Ok(a);
+        }
+        if counter >= reties {
+            at_home?;
+        }
+        counter += 1;
+        thread::sleep(Duration::from_secs(3));
+    }
+}
+
 async fn zip_chapter(uuid: Uuid, path: &PathBuf, client: &MangaDexClient) -> anyhow::Result<()> {
     info!("Writing chapter {} to {}", &uuid, &path.display());
 
-    let at_home = client
-        .at_home()
-        .server()
-        .chapter_id(&uuid)
-        .build()?
-        .send()
-        .await?;
+    let at_home = get_athomeserver_with_retry(uuid, client, 3).await?;
 
-    let http_client = reqwest::Client::new();
+    // Retry up to 3 times with increasing intervals between attempts.
+    let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
+    let http_client = ClientBuilder::new(reqwest::Client::new())
+        .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+        .build();
 
     debug!("Creating {}", &path.display());
     let file = File::create(path)?;
@@ -155,7 +193,7 @@ async fn zip_chapter(uuid: Uuid, path: &PathBuf, client: &MangaDexClient) -> any
         // The data should be streamed rather than downloading the data all at once.
         let bytes = res.bytes().await?;
 
-        debug!("Writing page {}", &page_name);
+        info!("Writing page \"{}\"", &page_name);
         zip.start_file(page_name, options)?;
         zip.write_all(&bytes)?;
 
