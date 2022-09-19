@@ -3,12 +3,13 @@ use env_logger::{Builder, Env, Target};
 use log::{debug, error, info};
 use manga_updater::configuration::Settings;
 use mangadex_api::{
-    types::Language,
+    types::{Language, MangaFeedSortOrder, OrderDirection},
     v5::schema::{AtHomeServer, ChapterAttributes},
     MangaDexClient,
 };
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
+use resolve_path::PathResolveExt;
 use std::{
     fs::{self, File},
     io::Write,
@@ -52,8 +53,8 @@ async fn main() {
 
 async fn run(settings: Settings) -> anyhow::Result<()> {
     info!("Output Directory: {}", settings.output_directory);
-    let base_path = Path::new(&settings.output_directory);
-    fs::create_dir_all(base_path)?;
+    let base_path = settings.output_directory.resolve();
+    fs::create_dir_all(&base_path)?;
 
     debug!("Manga {:?}", settings.manga);
 
@@ -71,10 +72,14 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
         let manga_path = base_path.join(manga_title);
         fs::create_dir_all(&manga_path)?;
 
+        // TODO: This needs a retry
+        // TODO: This needs pagination
         let feed_result = client
             .manga()
             .feed()
             .manga_id(&uuid)
+            .limit(500_u32)
+            .order(MangaFeedSortOrder::Chapter(OrderDirection::Ascending))
             .build()?
             .send()
             .await?;
@@ -86,10 +91,11 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
         let manga_chapters = feed_result?.data;
         let english_chapters = manga_chapters
             .iter()
-            .filter(|c| c.attributes.translated_language == Language::English);
+            .filter(|c| c.attributes.translated_language == Language::English)
+            .map(|a| (a.id, &a.attributes));
         for chapter in english_chapters {
-            let chapter_uuid = chapter.id;
-            let attrs = &chapter.attributes;
+            let chapter_uuid = chapter.0;
+            let attrs = chapter.1;
 
             if attrs.translated_language != Language::English {
                 continue;
@@ -109,6 +115,7 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
         }
     }
 
+    info!("Finished!");
     Ok(())
 }
 
@@ -116,7 +123,7 @@ fn get_filename(attrs: &ChapterAttributes, manga_title: &String) -> String {
     let chapter_title = if attrs.title.is_empty() {
         "".into()
     } else {
-        format!("- {}", &attrs.title)
+        format!(" - {}", &attrs.title)
     };
     let volume = match &attrs.volume {
         Some(v) => v,
