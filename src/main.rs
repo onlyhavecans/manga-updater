@@ -91,15 +91,10 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
         let manga_chapters = feed_result?.data;
         let english_chapters = manga_chapters
             .iter()
-            .filter(|c| c.attributes.translated_language == Language::English)
-            .map(|a| (a.id, &a.attributes));
+            .filter(|c| c.attributes.translated_language == Language::English);
         for chapter in english_chapters {
-            let chapter_uuid = chapter.0;
-            let attrs = chapter.1;
-
-            if attrs.translated_language != Language::English {
-                continue;
-            }
+            let chapter_uuid = chapter.id;
+            let attrs = &chapter.attributes;
 
             let filename = get_filename(attrs, manga_title);
             let page_count = attrs.pages;
@@ -208,6 +203,12 @@ async fn zip_chapter(uuid: Uuid, path: &PathBuf, client: &MangaDexClient) -> any
     }
 
     zip.finish()?;
+
+    // this is horrible but I get rate limited on short chapters
+    if page_count <= 5 {
+        thread::sleep(Duration::from_secs(2));
+    }
+
     Ok(())
 }
 
