@@ -4,7 +4,7 @@ use log::{debug, error, info};
 use manga_updater::configuration::Settings;
 use mangadex_api::{
     types::{Language, MangaFeedSortOrder, OrderDirection},
-    v5::schema::{AtHomeServer, ChapterAttributes},
+    v5::schema::{AtHomeServer, ChapterAttributes, ChapterObject},
     MangaDexClient,
 };
 use reqwest_middleware::ClientBuilder;
@@ -55,21 +55,39 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
     info!("Output Directory: {}", settings.output_directory);
     let base_path = settings.output_directory.resolve();
     fs::create_dir_all(&base_path)?;
+    let manga_list = settings.mangadex_manga;
 
-    debug!("Manga {:?}", settings.manga);
+    debug!("Manga {:?}", manga_list);
 
     let client = MangaDexClient::default();
 
-    for uuid in settings.manga {
-        let manga_result = client.manga().get().manga_id(&uuid).build()?.send().await?;
+    for manga in manga_list {
+        let manga_result = client
+            .manga()
+            .get()
+            .manga_id(&manga.uuid)
+            .build()?
+            .send()
+            .await?;
         let manga_attrs = manga_result.data.attributes;
-        let manga_title = manga_attrs
-            .title
-            .get(&mangadex_api::types::Language::English)
-            .unwrap();
+
+        // Use title from config or english title
+        let manga_title = match manga.name {
+            Some(name) => name,
+            None => manga_attrs
+                .title
+                .get(&mangadex_api::types::Language::English)
+                .unwrap()
+                .into(),
+        };
 
         info!("Checking Manga: {}", manga_title);
-        let manga_path = base_path.join(manga_title);
+
+        // If override path on manga's config use it
+        let manga_path = match manga.directory {
+            Some(dir) => dir.resolve().join(&manga_title),
+            None => base_path.join(&manga_title),
+        };
         fs::create_dir_all(&manga_path)?;
 
         // TODO: This needs a retry
@@ -78,18 +96,18 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
         let feed_result = client
             .manga()
             .feed()
-            .manga_id(&uuid)
+            .manga_id(&manga.uuid)
             .limit(500_u32)
             .order(MangaFeedSortOrder::Chapter(OrderDirection::Ascending))
             .build()?
             .send()
             .await?;
         if let Err(e) = feed_result {
-            error!("Unable to retrieve {}: {}", uuid, e);
+            error!("Unable to retrieve {}: {}", manga.uuid, e);
             continue;
         }
 
-        let manga_chapters = feed_result?.data;
+        let manga_chapters: Vec<ChapterObject> = feed_result?.data;
         let english_chapters = manga_chapters
             .iter()
             .filter(|c| c.attributes.translated_language == Language::English);
@@ -98,7 +116,7 @@ async fn run(settings: Settings) -> anyhow::Result<()> {
             let chapter_uuid = chapter.id;
             let attrs = &chapter.attributes;
 
-            let filename = get_filename(attrs, manga_title);
+            let filename = get_filename(attrs, &manga_title);
             let page_count = attrs.pages;
 
             debug!("\"{}\" is {} pages long", &filename, page_count);
