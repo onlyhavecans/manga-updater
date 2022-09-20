@@ -1,11 +1,10 @@
-use crate::configuration::Settings;
-use anyhow::bail;
-use log::{debug, error, info};
-use mangadex_api::{
-    types::{Language, MangaFeedSortOrder, OrderDirection},
-    v5::schema::{AtHomeServer, ChapterAttributes, ChapterObject},
-    MangaDexClient,
+use crate::{
+    configuration::Settings,
+    mangadex_client::{get_athomeserver, get_chapters},
 };
+use log::{debug, error, info};
+use mangadex_api::v5::schema::{ChapterAttributes, ChapterObject};
+use mangadex_api::{types::Language, MangaDexClient};
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use resolve_path::PathResolveExt;
@@ -100,45 +99,6 @@ pub async fn run(settings: Settings) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn get_chapters(uuid: Uuid, client: &MangaDexClient) -> anyhow::Result<Vec<ChapterObject>> {
-    // TODO: This needs a retry
-    // TODO: This needs to handle duplicate chapters
-    let mut offset: u32 = 0;
-    let mut retry_counter = 0;
-    let mut chapters: Vec<ChapterObject> = Vec::new();
-    loop {
-        let feed_result = client
-            .manga()
-            .feed()
-            .manga_id(&uuid)
-            .limit(500_u32)
-            .offset(offset)
-            .order(MangaFeedSortOrder::Chapter(OrderDirection::Ascending))
-            .build()?
-            .send()
-            .await?;
-
-        // Retry on errors
-        if let Err(e) = feed_result {
-            if retry_counter > 5 {
-                bail!(e)
-            }
-            retry_counter += 1;
-            continue;
-        }
-
-        let mut result = feed_result?;
-        chapters.append(&mut result.data);
-
-        offset += 500;
-        if offset > result.total {
-            break;
-        }
-    }
-
-    Ok(chapters)
-}
-
 fn generate_filename(attrs: &ChapterAttributes, manga_title: &String) -> String {
     let chapter_title = if attrs.title.is_empty() {
         "".into()
@@ -158,31 +118,6 @@ fn generate_filename(attrs: &ChapterAttributes, manga_title: &String) -> String 
         "{} - v{}c{}{}.cbz",
         manga_title, volume, chapter, chapter_title
     )
-}
-
-async fn get_athomeserver(
-    uuid: Uuid,
-    client: &MangaDexClient,
-    reties: u64,
-) -> anyhow::Result<AtHomeServer> {
-    let mut counter = 0;
-    loop {
-        let at_home = client
-            .at_home()
-            .server()
-            .chapter_id(&uuid)
-            .build()?
-            .send()
-            .await;
-        if let Ok(a) = at_home {
-            return Ok(a);
-        }
-        if counter >= reties {
-            at_home?;
-        }
-        counter += 1;
-        thread::sleep(Duration::from_secs(3));
-    }
 }
 
 async fn zip_chapter(uuid: Uuid, path: &PathBuf, client: &MangaDexClient) -> anyhow::Result<()> {
