@@ -1,4 +1,5 @@
 use crate::configuration::Settings;
+use anyhow::bail;
 use log::{debug, error, info};
 use mangadex_api::{
     types::{Language, MangaFeedSortOrder, OrderDirection},
@@ -58,7 +59,7 @@ pub async fn run(settings: Settings) -> anyhow::Result<()> {
         };
         fs::create_dir_all(&manga_path)?;
 
-        let feed_result = get_chapters_list(manga.uuid, &client).await;
+        let feed_result = get_chapters(manga.uuid, &client).await;
         if let Err(e) = feed_result {
             error!(
                 "Unable to retrieve feed for {}: {}, skipping",
@@ -76,7 +77,7 @@ pub async fn run(settings: Settings) -> anyhow::Result<()> {
             let chapter_uuid = chapter.id;
             let attrs = &chapter.attributes;
 
-            let filename = get_filename(attrs, &manga_title);
+            let filename = generate_filename(attrs, &manga_title);
             let page_count = attrs.pages;
 
             debug!("\"{}\" is {} pages long", &filename, page_count);
@@ -88,6 +89,8 @@ pub async fn run(settings: Settings) -> anyhow::Result<()> {
 
             if let Err(e) = zip_chapter(chapter_uuid, &chapter_path, &client).await {
                 error!("Error creating chapter {}: {}", &chapter_path.display(), e);
+                // clean up incomplete files, discard errors
+                let _ = fs::remove_file(&chapter_path);
                 continue;
             };
         }
@@ -97,13 +100,11 @@ pub async fn run(settings: Settings) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn get_chapters_list(
-    uuid: Uuid,
-    client: &MangaDexClient,
-) -> anyhow::Result<Vec<ChapterObject>> {
+async fn get_chapters(uuid: Uuid, client: &MangaDexClient) -> anyhow::Result<Vec<ChapterObject>> {
     // TODO: This needs a retry
     // TODO: This needs to handle duplicate chapters
     let mut offset: u32 = 0;
+    let mut retry_counter = 0;
     let mut chapters: Vec<ChapterObject> = Vec::new();
     loop {
         let feed_result = client
@@ -117,11 +118,20 @@ async fn get_chapters_list(
             .send()
             .await?;
 
+        // Retry on errors
+        if let Err(e) = feed_result {
+            if retry_counter > 5 {
+                bail!(e)
+            }
+            retry_counter += 1;
+            continue;
+        }
+
         let mut result = feed_result?;
         chapters.append(&mut result.data);
 
         offset += 500;
-        if result.total > offset {
+        if offset > result.total {
             break;
         }
     }
@@ -129,7 +139,7 @@ async fn get_chapters_list(
     Ok(chapters)
 }
 
-fn get_filename(attrs: &ChapterAttributes, manga_title: &String) -> String {
+fn generate_filename(attrs: &ChapterAttributes, manga_title: &String) -> String {
     let chapter_title = if attrs.title.is_empty() {
         "".into()
     } else {
@@ -150,7 +160,7 @@ fn get_filename(attrs: &ChapterAttributes, manga_title: &String) -> String {
     )
 }
 
-async fn get_athomeserver_with_retry(
+async fn get_athomeserver(
     uuid: Uuid,
     client: &MangaDexClient,
     reties: u64,
@@ -178,7 +188,7 @@ async fn get_athomeserver_with_retry(
 async fn zip_chapter(uuid: Uuid, path: &PathBuf, client: &MangaDexClient) -> anyhow::Result<()> {
     info!("Writing chapter {} to {}", &uuid, &path.display());
 
-    let at_home = get_athomeserver_with_retry(uuid, client, 3).await?;
+    let at_home = get_athomeserver(uuid, client, 3).await?;
 
     // Retry up to 3 times with increasing intervals between attempts.
     let retry_policy = ExponentialBackoff::builder().build_with_max_retries(3);
@@ -219,7 +229,7 @@ async fn zip_chapter(uuid: Uuid, path: &PathBuf, client: &MangaDexClient) -> any
 
     zip.finish()?;
 
-    // this is horrible but I get rate limited on short chapters
+    // I get rate limited on short chapters
     if page_count <= 5 {
         thread::sleep(Duration::from_secs(2));
     }
