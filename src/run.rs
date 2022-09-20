@@ -60,7 +60,10 @@ pub async fn run(settings: Settings) -> anyhow::Result<()> {
 
         let feed_result = get_chapters_list(manga.uuid, &client).await;
         if let Err(e) = feed_result {
-            error!("Unable to retrieve {}: {}, skipping", manga.uuid, e);
+            error!(
+                "Unable to retrieve feed for {}: {}, skipping",
+                manga.uuid, e
+            );
             continue;
         }
 
