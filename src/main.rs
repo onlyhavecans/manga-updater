@@ -7,7 +7,7 @@ use std::process;
 
 #[derive(clap::Parser)]
 struct Args {
-    #[clap(short, long, default_value = "manga.json")]
+    #[clap(short, long, default_value = "manga")]
     config_file: String,
 }
 

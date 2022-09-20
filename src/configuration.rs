@@ -33,7 +33,7 @@ mod tests {
 
     #[test]
     fn load_config() {
-        let c = Settings::new("manga.test.json").unwrap();
+        let c = Settings::new("manga.test").unwrap();
 
         assert_eq!("./test/manga", c.output_directory);
         let _a: OsString = c.output_directory.into();
