@@ -2,13 +2,13 @@ use crate::configuration::Settings;
 use log::{debug, error, info};
 use mangadex_api::{
     types::{Language, MangaFeedSortOrder, OrderDirection},
-    v5::schema::{AtHomeServer, ChapterAttributes, ChapterObject, Results},
+    v5::schema::{AtHomeServer, ChapterAttributes, ChapterObject},
     MangaDexClient,
 };
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use resolve_path::PathResolveExt;
-use std::{fs, result};
+use std::fs;
 use std::{
     fs::File,
     io::Write,
