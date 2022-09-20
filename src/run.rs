@@ -2,13 +2,13 @@ use crate::configuration::Settings;
 use log::{debug, error, info};
 use mangadex_api::{
     types::{Language, MangaFeedSortOrder, OrderDirection},
-    v5::schema::{AtHomeServer, ChapterAttributes, ChapterObject},
+    v5::schema::{AtHomeServer, ChapterAttributes, ChapterObject, Results},
     MangaDexClient,
 };
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use resolve_path::PathResolveExt;
-use std::fs;
+use std::{fs, result};
 use std::{
     fs::File,
     io::Write,
@@ -58,24 +58,13 @@ pub async fn run(settings: Settings) -> anyhow::Result<()> {
         };
         fs::create_dir_all(&manga_path)?;
 
-        // TODO: This needs a retry
-        // TODO: This needs pagination
-        // TODO: This needs to handle duplicate chapters
-        let feed_result = client
-            .manga()
-            .feed()
-            .manga_id(&manga.uuid)
-            .limit(500_u32)
-            .order(MangaFeedSortOrder::Chapter(OrderDirection::Ascending))
-            .build()?
-            .send()
-            .await?;
+        let feed_result = get_chapters_list(manga.uuid, &client).await;
         if let Err(e) = feed_result {
-            error!("Unable to retrieve {}: {}", manga.uuid, e);
+            error!("Unable to retrieve {}: {}, skipping", manga.uuid, e);
             continue;
         }
 
-        let manga_chapters: Vec<ChapterObject> = feed_result?.data;
+        let manga_chapters: Vec<ChapterObject> = feed_result?;
         let english_chapters = manga_chapters
             .iter()
             .filter(|c| c.attributes.translated_language == Language::English);
@@ -90,16 +79,51 @@ pub async fn run(settings: Settings) -> anyhow::Result<()> {
             debug!("\"{}\" is {} pages long", &filename, page_count);
             let chapter_path = manga_path.join(&filename);
             if chapter_path.exists() {
-                debug!("Chapter {} exists, Skipping", &filename);
+                debug!("Chapter {} exists, skipping", &filename);
                 continue;
             }
 
-            zip_chapter(chapter_uuid, &chapter_path, &client).await?;
+            if let Err(e) = zip_chapter(chapter_uuid, &chapter_path, &client).await {
+                error!("Error creating chapter {}: {}", &chapter_path.display(), e);
+                continue;
+            };
         }
     }
 
     info!("Finished!");
     Ok(())
+}
+
+async fn get_chapters_list(
+    uuid: Uuid,
+    client: &MangaDexClient,
+) -> anyhow::Result<Vec<ChapterObject>> {
+    // TODO: This needs a retry
+    // TODO: This needs to handle duplicate chapters
+    let mut offset: u32 = 0;
+    let mut chapters: Vec<ChapterObject> = Vec::new();
+    loop {
+        let feed_result = client
+            .manga()
+            .feed()
+            .manga_id(&uuid)
+            .limit(500_u32)
+            .offset(offset)
+            .order(MangaFeedSortOrder::Chapter(OrderDirection::Ascending))
+            .build()?
+            .send()
+            .await?;
+
+        let mut result = feed_result?;
+        chapters.append(&mut result.data);
+
+        offset += 500;
+        if result.total > offset {
+            break;
+        }
+    }
+
+    Ok(chapters)
 }
 
 fn get_filename(attrs: &ChapterAttributes, manga_title: &String) -> String {
