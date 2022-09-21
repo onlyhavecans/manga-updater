@@ -8,7 +8,6 @@ use std::{thread, time::Duration};
 use uuid::Uuid;
 
 pub async fn get_chapters(uuid: Uuid, client: &MangaDexClient) -> Result<Vec<ChapterObject>> {
-    // TODO: This needs a retry
     // TODO: This needs to handle duplicate chapters
     let mut offset: u32 = 0;
     let mut retry_counter = 0;
