@@ -36,8 +36,15 @@ pub async fn run(settings: Settings) -> anyhow::Result<()> {
             .manga_id(&manga.uuid)
             .build()?
             .send()
-            .await?;
-        let manga_attrs = manga_result.data.attributes;
+            .await;
+        if let Err(e) = manga_result {
+            error!(
+                "Unable to retrieve manga uuid {}: {}, skipping",
+                manga.uuid, e
+            );
+            continue;
+        }
+        let manga_attrs = manga_result?.data.attributes;
 
         // Use title from config or english title
         let manga_title = match manga.name {
@@ -118,6 +125,9 @@ fn generate_filename(attrs: &ChapterAttributes, manga_title: &String) -> String 
         "{} - v{}c{}{}.cbz",
         manga_title, volume, chapter, chapter_title
     )
+    .replace(':', "")
+    .replace('/', "")
+    .replace('\\', "")
 }
 
 async fn zip_chapter(uuid: Uuid, path: &PathBuf, client: &MangaDexClient) -> anyhow::Result<()> {
