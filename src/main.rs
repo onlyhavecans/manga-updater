@@ -1,15 +1,8 @@
-use clap::Parser;
 use env_logger::{Builder, Env, Target};
 use log::error;
-use manga_updater::configuration::Settings;
+use manga_updater::configuration::{Cli, Settings};
 use manga_updater::run::run;
 use std::process;
-
-#[derive(clap::Parser)]
-struct Args {
-    #[arg(short, long, default_value = "manga")]
-    config_file: String,
-}
 
 #[tokio::main]
 async fn main() {
@@ -19,7 +12,7 @@ async fn main() {
     builder.init();
 
     // Parse Args
-    let args = Args::parse();
+    let args = Cli::new();
 
     // Parse Settings
     let settings = Settings::new(&args.config_file);
@@ -33,16 +26,5 @@ async fn main() {
     if let Err(e) = run(s).await {
         error!("Application error: {}", e);
         process::exit(1);
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn clap_test() {
-        use clap::CommandFactory;
-        Args::command().debug_assert()
     }
 }

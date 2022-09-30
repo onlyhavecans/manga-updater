@@ -1,3 +1,4 @@
+use clap::Parser;
 use config::{Config, ConfigError};
 use serde::Deserialize;
 use uuid::Uuid;
@@ -24,12 +25,36 @@ impl Settings {
     }
 }
 
+#[derive(clap::Parser)]
+pub struct Cli {
+    #[arg(short, long, default_value = "manga")]
+    pub config_file: String,
+}
+
+impl Cli {
+    pub fn new() -> Self {
+        Cli::parse()
+    }
+}
+
+impl Default for Cli {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::ffi::OsString;
     use uuid::uuid;
 
     use super::*;
+
+    #[test]
+    fn clap_test() {
+        use clap::CommandFactory;
+        Cli::command().debug_assert()
+    }
 
     #[test]
     fn load_config() {
