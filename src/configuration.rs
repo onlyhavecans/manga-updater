@@ -12,7 +12,6 @@ pub struct Settings {
 #[derive(Deserialize, Debug, PartialEq, Eq)]
 pub struct MangaDexManga {
     pub uuid: Uuid,
-    pub directory: Option<String>,
     pub name: Option<String>,
 }
 
@@ -65,12 +64,10 @@ mod tests {
 
         let manga1 = MangaDexManga {
             uuid: uuid!("69060a67-1d4e-4110-9d29-838bfd99917f"),
-            directory: None,
             name: Some("Bloom Into You".into()),
         };
         let manga2 = MangaDexManga {
             uuid: uuid!("b77668ed-0810-4327-9684-46ca371e370e"),
-            directory: None,
             name: None,
         };
         let mangadex_manga = vec![manga1, manga2];
