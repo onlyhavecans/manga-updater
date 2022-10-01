@@ -60,10 +60,7 @@ pub async fn run(settings: Settings) -> anyhow::Result<()> {
         info!("Checking Manga: {}", manga_title);
 
         // If override path on manga's config use it
-        let manga_path = match manga.directory {
-            Some(dir) => dir.resolve().join(&manga_title),
-            None => base_path.join(&manga_title),
-        };
+        let manga_path = base_path.join(&manga_title);
         fs::create_dir_all(&manga_path)?;
 
         let feed_result = get_chapters(manga.uuid, &client).await;
