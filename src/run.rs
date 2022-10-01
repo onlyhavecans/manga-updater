@@ -160,7 +160,14 @@ async fn zip_chapter(uuid: Uuid, path: &PathBuf, client: &MangaDexClient) -> any
             page_filename = filename
         ))?;
 
-        let page_ext = Path::new(&filename).extension().unwrap();
+        let page_ext = match Path::new(&filename).extension() {
+            Some(ext) => ext,
+            None => {
+                info!("Skipping page with no extension: {}", &filename);
+                continue;
+            }
+        };
+
         let page_name = format!("page {:>03}.{}", page_count, page_ext.to_string_lossy());
         let res = http_client.get(page_url).send().await?;
         // The data should be streamed rather than downloading the data all at once.
