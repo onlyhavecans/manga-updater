@@ -1,7 +1,5 @@
-use crate::{
-    configuration::Settings,
-    mangadex_client::{get_athomeserver, get_chapters},
-};
+use crate::mangadex_client::{get_athomeserver, get_chapters};
+use crate::Settings;
 use log::{debug, error, info};
 use mangadex_api::types::Language;
 use mangadex_api::v5::schema::{ChapterAttributes, ChapterObject};

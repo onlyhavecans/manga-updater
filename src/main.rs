@@ -1,7 +1,7 @@
 use env_logger::{Builder, Env, Target};
 use log::error;
-use manga_updater::configuration::{Cli, Settings};
-use manga_updater::run::run;
+use manga_updater::run;
+use manga_updater::{Cli, Settings};
 use std::process;
 
 #[tokio::main]
