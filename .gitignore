@@ -1,4 +1,5 @@
 /target
+/test/manga
 manga.json
 manga.yaml
 *.log
