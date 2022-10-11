@@ -1,7 +1,7 @@
 use crate::mangadex_client::{get_athomeserver, get_chapters};
 use crate::Settings;
-use async_zip::write::{EntryOptions, ZipFileWriter};
-use async_zip::Compression;
+use async_zip::write::ZipFileWriter;
+use async_zip::{Compression, ZipEntryBuilder};
 use log::{debug, error, info};
 use mangadex_api::types::Language;
 use mangadex_api::v5::schema::{ChapterAttributes, ChapterObject};
@@ -167,8 +167,8 @@ async fn zip_chapter(uuid: Uuid, path: &PathBuf, client: &MangaDexClient) -> any
         let bytes = res.bytes().await?;
 
         info!("Writing page \"{}\"", &page_name);
-        let options = EntryOptions::new(page_name, Compression::Deflate);
-        zip.write_entry_whole(options, &bytes).await?;
+        let zip_builder = ZipEntryBuilder::new(page_name, Compression::Deflate);
+        zip.write_entry_whole(zip_builder, &bytes).await?;
 
         page_count += 1;
     }
