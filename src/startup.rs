@@ -122,9 +122,7 @@ fn generate_filename(attrs: &ChapterAttributes, manga_title: &String) -> String 
         "{} - v{}c{}{}.cbz",
         manga_title, volume, chapter, chapter_title
     )
-    .replace(':', "")
-    .replace('/', "")
-    .replace('\\', "")
+    .replace([':', '/', '\\'], "")
 }
 
 async fn zip_chapter(uuid: Uuid, path: &PathBuf, client: &MangaDexClient) -> anyhow::Result<()> {

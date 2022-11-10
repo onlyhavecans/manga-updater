@@ -15,9 +15,7 @@ impl Cbz {
 }
 
 fn sanitize_name(s: &str) -> String {
-    s.replace(':', "")
-        .replace('/', "")
-        .replace('\\', "")
+    s.replace([':', '/', '\\'], "")
         // Keep this last to remove duplicate spaces
         .replace("  ", " ")
 }
