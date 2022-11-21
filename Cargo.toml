@@ -18,6 +18,6 @@ reqwest-middleware = "0.1"
 reqwest-retry = "0.1"
 resolve-path = "0.1"
 serde = "1.0"
-tokio = { version = "1.21", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.22", features = ["rt-multi-thread", "macros"] }
 url = "2.3"
 uuid = { version = "1", features = ["v4", "serde"] }
