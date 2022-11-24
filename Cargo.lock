@@ -914,7 +914,7 @@ dependencies = [
  "log",
  "mangadex-api",
  "reqwest",
- "reqwest-middleware",
+ "reqwest-middleware 0.1.6",
  "reqwest-retry",
  "resolve-path",
  "serde",
@@ -1434,10 +1434,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "reqwest-retry"
-version = "0.1.5"
+name = "reqwest-middleware"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce246a729eaa6aff5e215aee42845bf5fed9893cc6cd51aeeb712f34e04dd9f3"
+checksum = "4a1c03e9011a8c59716ad13115550469e081e2e9892656b0ba6a47c907921894"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "http",
+ "reqwest",
+ "serde",
+ "task-local-extensions",
+ "thiserror",
+]
+
+[[package]]
+name = "reqwest-retry"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e29d842a94e8ab9b581fd3b906053872aef2fb3e474cbd88712047895d2deee4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1446,7 +1461,7 @@ dependencies = [
  "http",
  "hyper",
  "reqwest",
- "reqwest-middleware",
+ "reqwest-middleware 0.2.0",
  "retry-policies",
  "task-local-extensions",
  "tokio",
