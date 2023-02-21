@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
-async_zip = {version = "0.0.11", default_features = false, features = ["deflate"] }
+async_zip = {version = "0.0.12", default_features = false, features = ["deflate"] }
 clap = { version = "4.1", features = ["derive"] }
 config = "0.13"
 env_logger = "0.10"
