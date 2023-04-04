@@ -978,13 +978,13 @@ dependencies = [
 
 [[package]]
 name = "mangadex-api"
-version = "2.0.0-rc.1"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8660ae924bd7d3bafb25cc20e03f74e681e71b9e374e93c2d3e767fe3e7caeb"
+checksum = "e52f36edfc925ef0ecbeae652c6072d259faef5d9886842b754a787683b55610"
 dependencies = [
  "derive_builder",
- "mangadex-api-schema",
- "mangadex-api-types",
+ "mangadex-api-schema-rust",
+ "mangadex-api-types-rust",
  "reqwest",
  "serde",
  "serde_qs",
@@ -995,12 +995,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "mangadex-api-schema"
-version = "0.1.0"
+name = "mangadex-api-schema-rust"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "018d080953ed934811cce3508df6450044d94b92ab7da2deee5f26502aa70d74"
+checksum = "7922c906e1daad375e49bc37110ee5d40804a490ca083261c58a8c8186a0341a"
 dependencies = [
- "mangadex-api-types",
+ "mangadex-api-types-rust",
  "reqwest",
  "serde",
  "serde_qs",
@@ -1010,10 +1010,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "mangadex-api-types"
-version = "0.1.0"
+name = "mangadex-api-types-rust"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7e58c0c154b53d292a98c86b71642a8db442bf327e7eb96e95ded8cd5aa5824"
+checksum = "72d0e06eca57823d6b1c03378885cc0ddf0ea946222eeb1e6defbaf24a7998b7"
 dependencies = [
  "anyhow",
  "derive_builder",
