@@ -1,3 +1,4 @@
+---
 output_directory: ./test/manga
 mangadex_manga:
   - uuid: 69060a67-1d4e-4110-9d29-838bfd99917f
