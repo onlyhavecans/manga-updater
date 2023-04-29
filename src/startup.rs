@@ -1,7 +1,5 @@
 use crate::mangadex_client::{get_athomeserver, get_chapters};
 use crate::Settings;
-use async_zip::write::ZipFileWriter;
-use async_zip::{Compression, ZipEntryBuilder};
 use log::{debug, error, info};
 use mangadex_api::types::Language;
 use mangadex_api::v5::schema::{ChapterAttributes, ChapterObject};
@@ -10,14 +8,14 @@ use reqwest_middleware::ClientBuilder;
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::RetryTransientMiddleware;
 use resolve_path::PathResolveExt;
-use std::fs;
-use std::{
-    path::{Path, PathBuf},
-    thread,
-    time::Duration,
-};
-use tokio::fs::File;
+use std::fs::{self, File};
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::thread;
+use std::time::Duration;
 use uuid::Uuid;
+use zip::write::FileOptions;
+use zip::ZipWriter;
 
 pub async fn run(settings: Settings) -> anyhow::Result<()> {
     info!("Output Directory: {}", settings.output_directory);
@@ -137,8 +135,9 @@ async fn zip_chapter(uuid: Uuid, path: &PathBuf, client: &MangaDexClient) -> any
         .build();
 
     debug!("Creating {}", &path.display());
-    let mut file = File::create(path).await?;
-    let mut zip = ZipFileWriter::new(&mut file);
+    let file = File::create(path)?;
+    let mut zip = ZipWriter::new(file);
+    let options = FileOptions::default();
 
     let mut page_count = 1;
     let page_filenames = at_home.chapter.data;
@@ -165,13 +164,13 @@ async fn zip_chapter(uuid: Uuid, path: &PathBuf, client: &MangaDexClient) -> any
         let bytes = res.bytes().await?;
 
         info!("Writing page \"{}\"", &page_name);
-        let zip_builder = ZipEntryBuilder::new(page_name, Compression::Deflate);
-        zip.write_entry_whole(zip_builder, &bytes).await?;
+        zip.start_file(page_name, options)?;
+        zip.write_all(&bytes)?;
 
         page_count += 1;
     }
 
-    zip.close().await?;
+    zip.finish()?;
 
     // I get rate limited on short chapters
     if page_count <= 5 {

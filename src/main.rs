@@ -15,13 +15,15 @@ async fn main() {
     let args = Cli::new();
 
     // Parse Settings
-    let Ok(settings) = Settings::new(&args.config_file) else {
-        error!("Configuration error parsing: {settings}");
+    let settings = Settings::new(&args.config_file);
+    if let Err(e) = settings {
+        error!("Configuration error: {}", e);
         process::exit(1);
-    };
+    }
+    let s = settings.unwrap();
 
     // Run
-    if let Err(e) = run(settings).await {
+    if let Err(e) = run(s).await {
         error!("Application error: {}", e);
         process::exit(1);
     }
