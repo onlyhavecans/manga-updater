@@ -1,9 +1,9 @@
 use crate::mangadex_client::{get_athomeserver, get_chapters};
 use crate::Settings;
 use log::{debug, error, info};
-use mangadex_api::types::Language;
 use mangadex_api::v5::schema::{ChapterAttributes, ChapterObject};
 use mangadex_api::MangaDexClient;
+use mangadex_api_types_rust::Language;
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::policies::ExponentialBackoff;
 use reqwest_retry::RetryTransientMiddleware;
@@ -47,11 +47,7 @@ pub async fn run(settings: Settings) -> anyhow::Result<()> {
         // Use title from config or english title
         let manga_title = match manga.name {
             Some(name) => name,
-            None => manga_attrs
-                .title
-                .get(&mangadex_api::types::Language::English)
-                .unwrap()
-                .into(),
+            None => manga_attrs.title.get(&Language::English).unwrap().into(),
         };
 
         info!("Checking Manga: {}", manga_title);

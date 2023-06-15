@@ -1,9 +1,9 @@
 use anyhow::{bail, Result};
 use mangadex_api::{
-    types::{MangaFeedSortOrder, OrderDirection},
     v5::schema::{AtHomeServer, ChapterObject},
     MangaDexClient,
 };
+use mangadex_api_types_rust::{MangaFeedSortOrder, OrderDirection};
 use std::{thread, time::Duration};
 use uuid::Uuid;
 
