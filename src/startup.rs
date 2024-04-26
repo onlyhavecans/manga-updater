@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::Duration;
 use uuid::Uuid;
-use zip::write::FileOptions;
+use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
 
 pub async fn run(settings: Settings) -> anyhow::Result<()> {
@@ -133,7 +133,7 @@ async fn zip_chapter(uuid: Uuid, path: &PathBuf, client: &MangaDexClient) -> any
     debug!("Creating {}", &path.display());
     let file = File::create(path)?;
     let mut zip = ZipWriter::new(file);
-    let options = FileOptions::default();
+    let options = SimpleFileOptions::default();
 
     let mut page_count = 1;
     let page_filenames = at_home.chapter.data;
