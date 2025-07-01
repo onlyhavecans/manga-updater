@@ -1470,7 +1470,7 @@ dependencies = [
  "log",
  "mangadex-api",
  "mangadex-api-types-rust",
- "reqwest 0.12.20",
+ "reqwest 0.12.22",
  "reqwest-middleware",
  "reqwest-retry",
  "resolve-path",
@@ -1973,9 +1973,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.12.20"
+version = "0.12.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eabf4c97d9130e2bf606614eb937e86edac8292eaa6f422f995d7e8de1eb1813"
+checksum = "cbc931937e6ca3a06e3b6c0aa7841849b160a90351d6ab467a8b9b9959767531"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -2020,7 +2020,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "http 1.2.0",
- "reqwest 0.12.20",
+ "reqwest 0.12.22",
  "serde",
  "thiserror 1.0.69",
  "tower-service",
@@ -2039,7 +2039,7 @@ dependencies = [
  "http 1.2.0",
  "hyper 1.6.0",
  "parking_lot",
- "reqwest 0.12.20",
+ "reqwest 0.12.22",
  "reqwest-middleware",
  "retry-policies",
  "thiserror 1.0.69",
